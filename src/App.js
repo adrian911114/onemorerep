@@ -182,7 +182,7 @@ function ProfileModal({profile,setProfile,history,setHistory,workoutLog,cfLog,on
             {/* Profile photo */}
             <div style={{textAlign:"center",marginBottom:14}}>
               <div onClick={()=>fileRef.current.click()} style={{width:80,height:80,borderRadius:"50%",margin:"0 auto 8px",cursor:"pointer",overflow:"hidden",background:C.card2,display:"flex",alignItems:"center",justifyContent:"center",border:`2px dashed ${C.border}`}}>
-                {form.photo ? <img src={form.photo} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span style={{fontSize:28}}>👤</span>}
+                {form.photo ? <img alt="profile" src={form.photo} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span style={{fontSize:28}}>👤</span>}
               </div>
               <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
               <button onClick={()=>fileRef.current.click()} style={{fontSize:12,color:C.accentL,background:"none",border:"none",cursor:"pointer"}}>프로필 사진 변경</button>
@@ -191,7 +191,7 @@ function ProfileModal({profile,setProfile,history,setHistory,workoutLog,cfLog,on
             <Lbl>앱 배경 사진 (투명도 50%)</Lbl>
             <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:14}}>
               <div onClick={()=>bgRef.current.click()} style={{width:60,height:40,borderRadius:8,overflow:"hidden",background:C.card2,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",border:`1px dashed ${C.border}`,flexShrink:0}}>
-                {form.bgPhoto ? <img src={form.bgPhoto} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span style={{fontSize:20}}>🖼️</span>}
+                {form.bgPhoto ? <img alt="background" src={form.bgPhoto} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span style={{fontSize:20}}>🖼️</span>}
               </div>
               <input ref={bgRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleBg}/>
               <div>
@@ -1047,7 +1047,7 @@ export default function App() {
             <div style={{fontSize:10,color:C.muted,marginTop:1,fontStyle:"italic"}}>{VERSE}</div>
           </div>
           <button onClick={()=>setShowProfile(true)} style={{background:C.card,border:`0.5px solid ${C.border}`,borderRadius:"50%",width:38,height:38,cursor:"pointer",overflow:"hidden",padding:0,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-            {profile.photo ? <img src={profile.photo} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span style={{fontSize:18}}>👤</span>}
+            {profile.photo ? <img alt="profile" src={profile.photo} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : <span style={{fontSize:18}}>👤</span>}
           </button>
         </div>
 
