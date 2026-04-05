@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 
 const APP_NAME = "One More Rep_SOL";
-const HASHTAG = "#John1633";
+const HASHTAG = "#onemorerepsol";
 const VERSE = "100% is not enough. The next step is 101%.";
 const EPLEY = [100,95,91,88,85,83,80,78,76,74,72,70];
 
@@ -1059,12 +1059,18 @@ function GoalBanner({goal}) {
 // ── Main App ──────────────────────────────────────────────────────────────
 export default function App() {
   const [tab,setTab]       = useState("workout");
-  const [profile,setProfile] = useState({squat:0,bench:0,dead:0,weight:70,nick:"",photo:null,goal:"",bgPhoto:null});
-  const [history,setHistory] = useState([]);
-  const [workoutLog,setWorkoutLog] = useState({});
-  const [cfLog,setCfLog]           = useState({});
-  const [savedRoutines,setSavedRoutines] = useState([]);
-  const [showProfile,setShowProfile]     = useState(false);
+  const [profile,setProfile] = useState(()=>{try{const s=localStorage.getItem("profile");return s?JSON.parse(s):{squat:0,bench:0,dead:0,weight:70,nick:"",photo:null,goal:"",warmupSets:0,mainSets:3,cooldownSets:0};}catch{return{squat:0,bench:0,dead:0,weight:70,nick:"",photo:null,goal:"",warmupSets:0,mainSets:3,cooldownSets:0};}});
+  const [history,setHistory] = useState(()=>{try{const s=localStorage.getItem("history");return s?JSON.parse(s):[];}catch{return[];}});
+  const [workoutLog,setWorkoutLog] = useState(()=>{try{const s=localStorage.getItem("workoutLog");return s?JSON.parse(s):{};}catch{return{};}});
+  const [cfLog,setCfLog] = useState(()=>{try{const s=localStorage.getItem("cfLog");return s?JSON.parse(s):{};}catch{return{};}});
+  const [savedRoutines,setSavedRoutines] = useState(()=>{try{const s=localStorage.getItem("savedRoutines");return s?JSON.parse(s):[];}catch{return[];}});
+  const [showProfile,setShowProfile] = useState(false);
+
+  useEffect(()=>{try{localStorage.setItem("profile",JSON.stringify(profile));}catch{}},[profile]);
+  useEffect(()=>{try{localStorage.setItem("history",JSON.stringify(history));}catch{}},[history]);
+  useEffect(()=>{try{localStorage.setItem("workoutLog",JSON.stringify(workoutLog));}catch{}},[workoutLog]);
+  useEffect(()=>{try{localStorage.setItem("cfLog",JSON.stringify(cfLog));}catch{}},[cfLog]);
+  useEffect(()=>{try{localStorage.setItem("savedRoutines",JSON.stringify(savedRoutines));}catch{}},[savedRoutines]);
 
   const bgUrl = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80";
   const bgOpacity = 0.07;
