@@ -1,5 +1,6 @@
 /* eslint-disable */
 import { useState, useEffect, useRef, useMemo } from "react";
+import { supabase, isSupabaseConfigured } from "./supabaseClient";
 
 const APP_NAME = "One More Rep_SOL";
 const HASHTAG = "#onemorerepsol";
@@ -108,6 +109,108 @@ function ConfirmModal({message, onConfirm, onCancel}) {
       </div>
     </div>
   );
+}
+
+// 데이터 수집 동의 모달
+function ConsentModal({onAccept, onDecline}) {
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:600}}>
+      <div style={{background:C.card,border:`0.5px solid ${C.border}`,borderRadius:16,padding:24,width:340,maxWidth:"92vw",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        <p style={{fontSize:17,fontWeight:700,color:C.text,marginBottom:16,textAlign:"center"}}>데이터 수집 동의</p>
+        <div style={{background:C.card2,borderRadius:10,padding:14,marginBottom:14,border:`0.5px solid ${C.border}`}}>
+          <p style={{fontSize:13,color:C.text,lineHeight:1.8,margin:0}}>
+            <strong style={{color:C.accentL}}>101%</strong>는 운동 연구 및 서비스 개선을 위해
+            익명화된 운동 기록 데이터를 수집합니다.
+          </p>
+        </div>
+        <div style={{marginBottom:14}}>
+          <p style={{fontSize:12,fontWeight:600,color:C.accentL,marginBottom:6}}>수집 항목</p>
+          <ul style={{margin:0,paddingLeft:18,fontSize:12,color:C.text,lineHeight:2}}>
+            <li>운동 종목, 세트, 무게, 횟수</li>
+            <li>운동 시간 및 강도</li>
+            <li>운동 날짜</li>
+          </ul>
+        </div>
+        <div style={{marginBottom:14}}>
+          <p style={{fontSize:12,fontWeight:600,color:C.accentL,marginBottom:6}}>수집하지 않는 항목</p>
+          <ul style={{margin:0,paddingLeft:18,fontSize:12,color:C.text,lineHeight:2}}>
+            <li>이름, 연락처 등 개인 식별 정보</li>
+            <li>위치 정보</li>
+            <li>기기 고유 정보</li>
+          </ul>
+        </div>
+        <div style={{background:"#1e2a1e",borderRadius:8,padding:10,marginBottom:14,border:`0.5px solid ${C.green}44`}}>
+          <p style={{fontSize:11,color:C.green,margin:0,lineHeight:1.7}}>
+            모든 데이터는 완전히 익명으로 처리되며, 개인을 식별할 수 없습니다.
+            동의는 언제든지 설정에서 철회할 수 있습니다.
+          </p>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={onDecline} style={{flex:1,padding:"12px",border:`0.5px solid ${C.border}`,borderRadius:8,background:"transparent",color:C.muted,cursor:"pointer",fontSize:13}}>거부</button>
+          <button onClick={onAccept} style={{flex:1,padding:"12px",border:"none",borderRadius:8,background:C.accent,color:"#fff",cursor:"pointer",fontSize:14,fontWeight:700}}>동의</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 익명 ID 생성
+function getOrCreateAnonId() {
+  let id = localStorage.getItem("anon_id");
+  if (!id) {
+    id = crypto.randomUUID ? crypto.randomUUID() : 'xxxx-xxxx-xxxx'.replace(/x/g, () => Math.floor(Math.random()*16).toString(16));
+    localStorage.setItem("anon_id", id);
+  }
+  return id;
+}
+
+// Supabase에 운동 데이터 동기화
+async function syncWorkoutToSupabase(result) {
+  if (!isSupabaseConfigured()) return;
+  const consent = localStorage.getItem("data_consent");
+  if (consent !== "accepted") return;
+  const anonId = getOrCreateAnonId();
+  try {
+    await supabase.from("workout_logs").insert({
+      anonymous_id: anonId,
+      workout_date: result.date,
+      duration_sec: result.tt,
+      intensity: result.intensity,
+      total_volume: result.totalVol,
+      main_volume: result.mainVol,
+      main_sets: result.sets,
+      calories: result.cal,
+      exercises: result.exercises,
+    });
+    await supabase.from("consent_users")
+      .update({ last_sync_at: new Date().toISOString(), total_workouts: undefined })
+      .eq("anonymous_id", anonId);
+    // total_workouts 증가는 RPC로 처리하거나 admin에서 카운트
+  } catch (e) { console.warn("sync failed:", e); }
+}
+
+// Supabase에 동의 등록
+async function registerConsent() {
+  if (!isSupabaseConfigured()) return;
+  const anonId = getOrCreateAnonId();
+  try {
+    await supabase.from("consent_users").upsert(
+      { anonymous_id: anonId, consented_at: new Date().toISOString(), active: true },
+      { onConflict: "anonymous_id" }
+    );
+  } catch (e) { console.warn("consent registration failed:", e); }
+}
+
+// Supabase에 동의 철회
+async function revokeConsent() {
+  if (!isSupabaseConfigured()) return;
+  const anonId = localStorage.getItem("anon_id");
+  if (!anonId) return;
+  try {
+    await supabase.from("consent_users")
+      .update({ active: false })
+      .eq("anonymous_id", anonId);
+  } catch (e) { console.warn("revoke failed:", e); }
 }
 
 function Spark({data,color=C.accentL,labels}) {
@@ -264,7 +367,7 @@ function CalendarView({workoutLog,cfLog,onSelectDay}) {
   );
 }
 
-function ProfileModal({profile,setProfile,history,setHistory,workoutLog,cfLog,onClose}) {
+function ProfileModal({profile,setProfile,history,setHistory,workoutLog,cfLog,onClose,dataConsent,toggleDataConsent}) {
   const [ptab,setPtab]=useState("기본");
   const [form,setForm]=useState({...profile});
   const [dirty,setDirty]=useState(false);
@@ -335,6 +438,15 @@ function ProfileModal({profile,setProfile,history,setHistory,workoutLog,cfLog,on
               </div>
               <button onClick={()=>update("keepAwake",!form.keepAwake)} style={{width:48,height:26,borderRadius:13,background:form.keepAwake?C.accent:C.border,border:"none",cursor:"pointer",position:"relative",transition:"background .2s"}}>
                 <span style={{position:"absolute",top:3,left:form.keepAwake?26:4,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .2s"}}/>
+              </button>
+            </div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:C.card2,borderRadius:10,padding:"10px 14px",marginBottom:10}}>
+              <div>
+                <div style={{fontSize:13,color:C.text,fontWeight:500}}>익명 데이터 수집 동의</div>
+                <div style={{fontSize:11,color:C.muted}}>운동 기록을 익명으로 연구에 제공</div>
+              </div>
+              <button onClick={toggleDataConsent} style={{width:48,height:26,borderRadius:13,background:dataConsent==="accepted"?C.accent:C.border,border:"none",cursor:"pointer",position:"relative",transition:"background .2s"}}>
+                <span style={{position:"absolute",top:3,left:dataConsent==="accepted"?26:4,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left .2s"}}/>
               </button>
             </div>
             <div style={{background:"#1e3a6e",borderRadius:10,padding:12,textAlign:"center",marginBottom:14}}>
@@ -846,6 +958,7 @@ function WorkoutScreen({profile,workoutLog,setWorkoutLog,cfLog,savedRoutines,set
     const result={...pendingFinish,intensity};
     setSummary(result);
     setWorkoutLog(p=>{const n={...p,[activeDate]:[...(p[activeDate]||[]),result]};lsSave("workoutLog",n);return n;});
+    syncWorkoutToSupabase(result);
     setShowIntensity(false);setPendingFinish(null);setPhase("summary");
   };
 
@@ -1784,6 +1897,28 @@ export default function App() {
   const [heroWods,setHeroWods]=useState(()=>ls("customHeroWods",DEFAULT_HERO_WODS));
   const [liveState,setLiveState]=useState(null);
   const [showTrash,setShowTrash]=useState(false);
+  const [dataConsent,setDataConsent]=useState(()=>localStorage.getItem("data_consent")||"");
+  const [showConsent,setShowConsent]=useState(()=>!localStorage.getItem("data_consent"));
+
+  const handleConsent=(accepted)=>{
+    const val=accepted?"accepted":"declined";
+    localStorage.setItem("data_consent",val);
+    setDataConsent(val);
+    setShowConsent(false);
+    if(accepted) registerConsent();
+  };
+
+  const toggleDataConsent=()=>{
+    if(dataConsent==="accepted"){
+      localStorage.setItem("data_consent","declined");
+      setDataConsent("declined");
+      revokeConsent();
+    } else {
+      localStorage.setItem("data_consent","accepted");
+      setDataConsent("accepted");
+      registerConsent();
+    }
+  };
 
   // 휴지통: {id, type:"workout"|"cf", day, logIdx, data, deletedAt}
   const [trash,setTrash]=useState(()=>{
@@ -1870,9 +2005,10 @@ export default function App() {
           </button>
         ))}
       </div>
-      {showProfile && <ProfileModal profile={profile} setProfile={setProfile} history={history} setHistory={setHistory} workoutLog={workoutLog} cfLog={cfLog} onClose={()=>setShowProfile(false)}/>}
+      {showProfile && <ProfileModal profile={profile} setProfile={setProfile} history={history} setHistory={setHistory} workoutLog={workoutLog} cfLog={cfLog} onClose={()=>setShowProfile(false)} dataConsent={dataConsent} toggleDataConsent={toggleDataConsent}/>}
       {showProgramEdit && <ProgramEditModal programs={programs} heroWods={heroWods} onSavePrograms={handleSavePrograms} onSaveHeroWods={handleSaveHeroWods} onClose={()=>setShowProgramEdit(false)}/>}
       {showTrash && <TrashModal trash={trash} onRestore={restoreFromTrash} onDelete={deleteFromTrash} onClose={()=>setShowTrash(false)}/>}
+      {showConsent && <ConsentModal onAccept={()=>handleConsent(true)} onDecline={()=>handleConsent(false)}/>}
     </div>
   );
 }
